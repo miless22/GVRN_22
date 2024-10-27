@@ -10,10 +10,13 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers, // Add this intent to listen for member updates
+    GatewayIntentBits.GuildMessages, // Required to listen to messages in guilds
+    GatewayIntentBits.MessageContent, // To access message content
   ],
 });
 client.commands = new Collection();
 client.commandArray = [];
+const prefix = '!'; // Define your command prefix
 
 // Ready event to log bot information
 client.once('ready', () => {
@@ -50,6 +53,25 @@ client.on('guildMemberRemove', async (member) => {
   }
 });
 
+// Handle message-based commands
+client.on('messageCreate', async (message) => {
+  if (!message.content.startsWith(prefix) || message.author.bot) return; // Ignore messages that don't start with the prefix or are from bots
+
+  const args = message.content.slice(prefix.length).trim().split(/ +/); // Get command arguments
+  const commandName = args.shift().toLowerCase(); // Get command name
+
+  const command = client.commands.get(commandName); // Check if command exists
+  if (command) {
+    try {
+      await command.executeMessage(message, args, client); // Execute command with message context
+    } catch (error) {
+      console.error(error); // Log errors
+      await message.reply('There was an error executing that command.'); // Inform user
+    }
+  }
+});
+
+// Load event files
 const handleEvents = async () => {
   const eventFiles = fs.readdirSync('./events').filter((file) => file.endsWith('.js'));
   for (const file of eventFiles) {
@@ -59,6 +81,7 @@ const handleEvents = async () => {
   }
 };
 
+// Load command files
 const handleCommands = async () => {
   const commandFolders = fs.readdirSync('./commands');
   for (const folder of commandFolders) {
