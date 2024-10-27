@@ -19,7 +19,7 @@ module.exports = {
         .setDescription('Add money to a user\'s balance (Admins only).')
         .addUserOption(option =>
             option.setName('user')
-                .setDescription('The user to add money to')
+                .setDescription('The user to add money to (select @everyone to add to all)')
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('amount')
@@ -34,6 +34,22 @@ module.exports = {
 
         const targetUser = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
+
+        if (targetUser === null) {
+            // Handle @everyone case
+            userBalances.forEach(userBalance => {
+                userBalance.balance += amount;
+            });
+            
+            // Save updated balances to the file
+            fs.writeFileSync(balancesFilePath, JSON.stringify(userBalances, null, 2), 'utf-8');
+
+            const embed = new EmbedBuilder()
+                .setColor('#ff7d52')
+                .setDescription(`Successfully added **${amount}** to everyone\'s balance.`);
+
+            return interaction.reply({ embeds: [embed] });
+        }
 
         // Check if the target user exists in the balances array
         let userBalance = userBalances.find(user => user.id === targetUser.id);
@@ -51,8 +67,8 @@ module.exports = {
 
         // Create an embed to confirm the transaction
         const embed = new EmbedBuilder()
-        .setColor('#ff7d52')
-            .setDescription(`Successfully added **${amount}** to **<@${interaction.user.id}>'s** balance.`)
+            .setColor('#ff7d52')
+            .setDescription(`Successfully added **${amount}** to **<@${targetUser.id}>'s** balance.`);
 
         // Reply with the embed confirmation
         return interaction.reply({ embeds: [embed] });
