@@ -1,9 +1,7 @@
-// commands/economy/addmoney.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-// Path to the balances file
 const balancesFilePath = path.join('C:', 'Users', 'gamin', 'Documents', 'DiscordBots', 'GVRN Bot', 'data', 'eco', 'balances.json');
 
 // Load user balances from the file
@@ -25,9 +23,8 @@ module.exports = {
             option.setName('amount')
                 .setDescription('The amount of money to add')
                 .setRequired(true)),
-    
+
     async execute(interaction) {
-        // Check if the user is an admin
         if (!interaction.member.permissions.has('ADMINISTRATOR')) {
             return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
         }
@@ -36,41 +33,59 @@ module.exports = {
         const amount = interaction.options.getInteger('amount');
 
         if (targetUser === null) {
-            // Handle @everyone case
             userBalances.forEach(userBalance => {
                 userBalance.balance += amount;
             });
-            
-            // Save updated balances to the file
+
             fs.writeFileSync(balancesFilePath, JSON.stringify(userBalances, null, 2), 'utf-8');
-
-            const embed = new EmbedBuilder()
-                .setColor('#ff7d52')
-                .setDescription(`Successfully added **${amount}** to everyone\'s balance.`);
-
-            return interaction.reply({ embeds: [embed] });
+            return interaction.reply({ content: `Successfully added **${amount}** to everyone's balance.` });
         }
 
-        // Check if the target user exists in the balances array
         let userBalance = userBalances.find(user => user.id === targetUser.id);
-        
-        // If the user does not exist, initialize their balance
         if (!userBalance) {
             userBalances.push({ id: targetUser.id, balance: amount });
         } else {
-            // Add the specified amount to the user's balance
             userBalance.balance += amount;
         }
 
-        // Save updated balances to the file
         fs.writeFileSync(balancesFilePath, JSON.stringify(userBalances, null, 2), 'utf-8');
+        return interaction.reply({ content: `Successfully added **${amount}** to **<@${targetUser.id}>'s** balance.` });
+    },
 
-        // Create an embed to confirm the transaction
-        const embed = new EmbedBuilder()
-            .setColor('#ff7d52')
-            .setDescription(`Successfully added **${amount}** to **<@${targetUser.id}>'s** balance.`);
+    async executeMessage(message, args) {
+        if (!message.member.permissions.has('ADMINISTRATOR')) {
+            return message.reply('You do not have permission to use this command.');
+        }
 
-        // Reply with the embed confirmation
-        return interaction.reply({ embeds: [embed] });
+        const target = args[0];
+        const amount = parseInt(args[1]);
+
+        if (!target || isNaN(amount)) {
+            return message.reply('Please provide a valid user or `@everyone` and an amount.');
+        }
+
+        if (target === '@everyone') {
+            userBalances.forEach(userBalance => {
+                userBalance.balance += amount;
+            });
+
+            fs.writeFileSync(balancesFilePath, JSON.stringify(userBalances, null, 2), 'utf-8');
+            return message.reply(`Successfully added **${amount}** to everyone's balance.`);
+        } else {
+            const targetUser = message.mentions.users.first();
+            if (!targetUser) {
+                return message.reply('Please mention a valid user.');
+            }
+
+            let userBalance = userBalances.find(user => user.id === targetUser.id);
+            if (!userBalance) {
+                userBalances.push({ id: targetUser.id, balance: amount });
+            } else {
+                userBalance.balance += amount;
+            }
+
+            fs.writeFileSync(balancesFilePath, JSON.stringify(userBalances, null, 2), 'utf-8');
+            return message.reply(`Successfully added **${amount}** to **<@${targetUser.id}>'s** balance.`);
+        }
     },
 };
